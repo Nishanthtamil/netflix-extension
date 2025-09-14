@@ -1,3 +1,4 @@
+// content.js - Enhanced positioning version
 (function() {
     'use strict';
     
@@ -27,6 +28,7 @@
             return OMDB_API_KEY;
         }
     }
+    
     window.addEventListener('message', function(event) {
         if (event.source !== window) return;
         
@@ -39,6 +41,7 @@
             setTimeout(processNetflixCards, 500);
         }
     });
+    
     if (typeof browser !== 'undefined' && browser.runtime) {
         browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.log('📨 Browser message received:', message);
@@ -60,43 +63,44 @@
             return;
         }
         
+        // More comprehensive selectors for Netflix cards
         const cardSelectors = [
             '.title-card',
             '.slider-item',
             '.gallery-item',
             '[data-uia="tile"]',
             '.titleCard',
-            '.slider-refocus'
+            '.slider-refocus',
+            '.title-card-container',
+            '[data-uia="title-card"]',
+            '.boxart-container',
+            '.slider-item-0',
+            '.slider-item-1',
+            '.slider-item-2'
         ];
         
         let totalCards = 0;
         cardSelectors.forEach(selector => {
-            const cards = document.querySelectorAll(selector);
-            console.log(`📺 Found ${cards.length} cards with selector: ${selector}`);
+            const cards = document.querySelectorAll(`${selector}:not(.imdb-processed)`);
+            console.log(`📺 Found ${cards.length} NEW cards with selector: ${selector}`);
             totalCards += cards.length;
-            cards.forEach(processCard);
+            cards.forEach(card => {
+                card.classList.add('imdb-processed'); // Mark as processed
+                processCard(card);
+            });
         });
         
-        console.log(`📊 Total cards found: ${totalCards}`);
+        console.log(`📊 Total NEW cards found: ${totalCards}`);
         
         if (totalCards === 0) {
-            console.log('🔍 Trying alternative selectors...');
-            const altSelectors = [
-                '.ptrack-content',
-                '.title-card-container',
-                '.jawBone',
-                '.titleCardList',
-                '[data-list-context]'
-            ];
-            
-            altSelectors.forEach(selector => {
-                const cards = document.querySelectorAll(selector);
-                console.log(`🎯 Alternative selector ${selector}: ${cards.length} cards`);
-            });
+            console.log('🔍 No new cards found, checking for any Netflix cards...');
+            const allCards = document.querySelectorAll('div[class*="title"], div[class*="card"], div[class*="slider"]');
+            console.log(`🎯 Found ${allCards.length} potential card elements`);
         }
     }
     
     async function processCard(card) {
+        // Skip if already has rating
         if (card.querySelector('.imdb-rating')) {
             console.log('⏭️ Card already has rating, skipping');
             return;
@@ -146,7 +150,9 @@
             'img[alt]',
             '.title',
             '[data-uia="video-title"]',
-            '.titlecard-title'
+            '.titlecard-title',
+            '.previewModal--title',
+            '.fallback-text-container'
         ];
         
         for (let selector of selectors) {
@@ -229,7 +235,9 @@
     
     function addRatingToCard(card, ratingData) {
         console.log('🎨 Adding rating to card:', ratingData);
+        console.log('🎨 Card element:', card);
         
+        // Create rating element
         const ratingElement = document.createElement('div');
         ratingElement.className = 'imdb-rating';
         
@@ -241,16 +249,52 @@
             </div>
         `;
         
-        const titleElement = card.querySelector('.fallback-text, .video-title');
-        if (titleElement && titleElement.parentNode) {
+        // Try multiple positioning strategies
+        let positioned = false;
+        
+        // Strategy 1: Find title element and add to its parent
+        const titleElement = card.querySelector('.fallback-text, .video-title, [data-uia="video-title"]');
+        if (titleElement && titleElement.parentNode && !positioned) {
             titleElement.parentNode.style.position = 'relative';
             titleElement.parentNode.appendChild(ratingElement);
             console.log('✅ Rating added to title element parent');
-        } else {
+            positioned = true;
+        }
+        
+        // Strategy 2: Find image element and add to its container
+        if (!positioned) {
+            const imageElement = card.querySelector('img');
+            if (imageElement && imageElement.parentNode) {
+                imageElement.parentNode.style.position = 'relative';
+                imageElement.parentNode.appendChild(ratingElement);
+                console.log('✅ Rating added to image parent');
+                positioned = true;
+            }
+        }
+        
+        // Strategy 3: Add directly to card
+        if (!positioned) {
             card.style.position = 'relative';
             card.appendChild(ratingElement);
             console.log('✅ Rating added directly to card');
+            positioned = true;
         }
+        
+        // Force visibility for debugging
+        ratingElement.style.visibility = 'visible';
+        ratingElement.style.display = 'block';
+        
+        console.log('🎨 Rating element created and positioned:', ratingElement);
+        
+        // Add a temporary bright border for debugging
+        setTimeout(() => {
+            const badge = ratingElement.querySelector('.imdb-badge');
+            if (badge) {
+                badge.style.border = '3px solid red';
+                badge.style.background = 'red';
+                console.log('🔴 Added red debug border to rating');
+            }
+        }, 1000);
     }
     
     function setupObserver() {
@@ -290,7 +334,6 @@
         
         if (!OMDB_API_KEY) {
             console.warn('⚠️ Netflix IMDb Extension: Please set your API key in the extension popup');
-            // Try to get API key from popup input manually
             setTimeout(() => {
                 const savedKey = localStorage.getItem('netflix_imdb_api_key');
                 if (savedKey) {
@@ -317,6 +360,12 @@
         }).observe(document, { subtree: true, childList: true });
         
         console.log('✅ Extension initialized successfully');
+        
+        // Manual debug trigger
+        window.debugNetflixExtension = () => {
+            console.log('🐛 Manual debug trigger');
+            processNetflixCards();
+        };
     }
     
     if (document.readyState === 'loading') {
