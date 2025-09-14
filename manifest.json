@@ -1,0 +1,38 @@
+{
+  "manifest_version": 2,
+  "name": "Netflix IMDb Ratings",
+  "version": "1.0",
+  "description": "Shows IMDb ratings on Netflix movie cards",
+  
+  "applications": {
+    "gecko": {
+      "id": "netflix-imdb-ratings@your-domain.com"
+    }
+  },
+  
+  "permissions": [
+    "https://www.netflix.com/*",
+    "https://*.imdb.com/*",
+    "https://*.omdbapi.com/*",
+    "storage",
+    "activeTab"
+  ],
+  
+  "content_scripts": [
+    {
+      "matches": ["https://www.netflix.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Netflix IMDb Ratings Settings"
+  },
+  
+  "web_accessible_resources": [
+    "styles.css"
+  ]
+}
