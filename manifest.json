@@ -4,12 +4,6 @@
   "version": "1.0",
   "description": "Shows IMDb ratings on Netflix movie cards",
   
-  "applications": {
-    "gecko": {
-      "id": "netflix-imdb-ratings@your-domain.com"
-    }
-  },
-  
   "permissions": [
     "https://www.netflix.com/*",
     "https://*.imdb.com/*",
